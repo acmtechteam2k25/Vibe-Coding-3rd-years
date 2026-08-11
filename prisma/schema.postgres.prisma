@@ -1,0 +1,104 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                    String         @id @default(cuid())
+  clerkId               String         @unique
+  role                  Role
+  name                  String
+  email                 String         @unique
+  avatarUrl             String?
+  createdAt             DateTime       @default(now())
+  properties            Property[]     @relation("OwnerProperties")
+  conversationsAsTenant Conversation[] @relation("TenantConversations")
+  conversationsAsOwner  Conversation[] @relation("OwnerConversations")
+  messages              Message[]
+}
+
+enum Role {
+  OWNER
+  TENANT
+}
+
+model Property {
+  id            String         @id @default(cuid())
+  ownerId       String
+  owner         User           @relation("OwnerProperties", fields: [ownerId], references: [id])
+  title         String
+  description   String
+  price         Int
+  address       String
+  lat           Float
+  lng           Float
+  amenities     String[]
+  images        String[]
+  status        PropertyStatus @default(ACTIVE)
+  bedrooms      Int
+  bathrooms     Int
+  areaSqft      Int
+  createdAt     DateTime       @default(now())
+  conversations Conversation[]
+}
+
+enum PropertyStatus {
+  ACTIVE
+  INACTIVE
+  RENTED
+}
+
+model Conversation {
+  id             String             @id @default(cuid())
+  propertyId     String
+  property       Property           @relation(fields: [propertyId], references: [id])
+  tenantId       String
+  tenant         User               @relation("TenantConversations", fields: [tenantId], references: [id])
+  ownerId        String
+  owner          User               @relation("OwnerConversations", fields: [ownerId], references: [id])
+  status         ConversationStatus @default(OPEN)
+  lastMessageAt  DateTime           @default(now())
+  lastSenderRole Role?
+  createdAt      DateTime           @default(now())
+  messages       Message[]
+
+  @@unique([propertyId, tenantId])
+}
+
+enum ConversationStatus {
+  OPEN
+  NEGOTIATING
+  ACCEPTED
+  DECLINED
+  CLOSED
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id])
+  type           MessageType
+  text           String?
+  offerAmount    Int?
+  offerStatus    OfferStatus?
+  createdAt      DateTime     @default(now())
+}
+
+enum MessageType {
+  TEXT
+  OFFER
+  SYSTEM
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COUNTERED
+}
